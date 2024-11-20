@@ -33,6 +33,7 @@ func runGridTests(t *testing.T, grid grids.Grid, tests []gridTestCase, mode grid
 			actualDist := distance.VincentyIterations(tt.lat, tt.lon, recoveredLat, recoveredLon, iterations)
 			t.Logf("Actual #%d index: (%.3f, %.3f), dist: %fkm from (%.3f, %.3f)",
 				idx, recoveredLat, recoveredLon, actualDist, tt.lat, tt.lon)
+			assert.GreaterOrEqual(t, actualDist, 0.0)
 
 			nearestIdxs := grids.NewNearestGrids(grid).NearestGrids(tt.lat, tt.lon, mode)
 			for i, nearIdx := range nearestIdxs {
@@ -71,14 +72,6 @@ func runGridTests(t *testing.T, grid grids.Grid, tests []gridTestCase, mode grid
 
 			assert.InDelta(t, expectedDist, guessDist, 1e-3)
 		})
-	}
-}
-
-func benchGridTests(b *testing.B, grid grids.Grid, tests []gridTestCase, mode grids.ScanMode) {
-	for i := 0; i < b.N; i++ {
-		for _, tt := range tests {
-			grids.GridIndex(grid, tt.lat, tt.lon, mode)
-		}
 	}
 }
 
@@ -729,3 +722,39 @@ func BenchmarkGridPoint(b *testing.B) {
 		}
 	})
 }
+
+var octahedralGaussianGridTests = []gridTestCase{
+	// 网格点精确匹配
+	{name: "North Pole", lat: 90.0, lon: 0.0, expectedIdx: 0, gridLat: 90.0, gridLon: 0.0},
+	{name: "Near North Pole", lat: 89.99, lon: 0.0, expectedIdx: 0, gridLat: 90.0, gridLon: 0.0},
+
+	// 赤道测试点（经度点数最多）
+	{name: "Equator 0", lat: 0.0, lon: 0.0, expectedIdx: 9024, gridLat: 0.933, gridLon: 0.0},
+	{name: "Equator 90", lat: 0.0, lon: 90.0, expectedIdx: 9072, gridLat: 0.933, gridLon: 90.0},
+	{name: "Equator 180", lat: 0.0, lon: 180.0, expectedIdx: 9120, gridLat: 0.933, gridLon: 180.0},
+	{name: "Equator 270", lat: 0.0, lon: 270.0, expectedIdx: 9168, gridLat: 0.933, gridLon: 270.0},
+
+	// 极点附近测试（经度点数最少）
+	{name: "Near North Pole 90", lat: 89.5, lon: 90.0, expectedIdx: 48, gridLat: 88.572, gridLon: 90.0},
+	{name: "Near South Pole 90", lat: -89.5, lon: 90.0, expectedIdx: 18049, gridLat: -88.572, gridLon: 90.0},
+
+	// 中间纬度测试点
+	{name: "Mid Lat North", lat: 45.0, lon: 0.0, expectedIdx: 4416, gridLat: 45.699, gridLon: 0.0},
+	{name: "Mid Lat South", lat: -45.0, lon: 0.0, expectedIdx: 13824, gridLat: -44.301, gridLon: 0.0},
+	{name: "Near South Pole 90", lat: -89.5, lon: 90.0, expectedIdx: 18144, gridLat: -88.572, gridLon: 90.0},
+
+	// 经度边界测试
+	{name: "Date Line Positive", lat: 0.0, lon: 180.0, expectedIdx: 9120, gridLat: 0.933, gridLon: 180.0},
+	{name: "Date Line Negative", lat: 0.0, lon: -180.0, expectedIdx: 9120, gridLat: 0.933, gridLon: 180.0},
+
+	// 特殊纬线
+	{name: "Arctic Circle", lat: 66.5, lon: 0.0, expectedIdx: 2304, gridLat: 66.5, gridLon: 0.0},
+	{name: "Tropic of Cancer", lat: 23.5, lon: 0.0, expectedIdx: 6720, gridLat: 23.315, gridLon: 0.0},
+	{name: "Tropic of Capricorn", lat: -23.5, lon: 0.0, expectedIdx: 11712, gridLat: -23.315, gridLon: 0.0},
+	{name: "Antarctic Circle", lat: -66.5, lon: 0.0, expectedIdx: 15936, gridLat: -66.5, gridLon: 0.0},
+}
+
+// func TestOctahedralGaussian(t *testing.T) {
+// 	grid := gaussian.NewOctahedral(48)
+// 	runGridTests(t, grid, octahedralGaussianGridTests, 0)
+// }
